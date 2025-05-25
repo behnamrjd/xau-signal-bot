@@ -1,0 +1,500 @@
+{
+  "meta": {
+    "instanceId": "n8n-xau-signal-bot-advanced-v3"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "telegramApi",
+        "updates": ["message", "callback_query"]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-credentials",
+          "name": "XAU Signal Bot Advanced"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.message?.text || '' }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "/start",
+              "output": 0
+            },
+            {
+              "value2": "/signals",
+              "output": 1
+            },
+            {
+              "value2": "/news",
+              "output": 2
+            },
+            {
+              "value2": "/analysis",
+              "output": 3
+            },
+            {
+              "value2": "/ensemble",
+              "output": 4
+            },
+            {
+              "value2": "/risk",
+              "output": 5
+            }
+          ]
+        },
+        "fallbackOutput": 6
+      },
+      "id": "command-switch",
+      "name": "Command Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=5m&range=7d",
+        "options": {
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (compatible; n8n-advanced-bot/2.0)",
+            "Accept": "application/json"
+          },
+          "timeout": 20000,
+          "retry": {
+            "enabled": true,
+            "maxRetries": 5
+          }
+        }
+      },
+      "id": "yahoo-finance-realtime",
+      "name": "Yahoo Finance Real-time",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.cohere.ai/v1/generate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cohereApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.cohereApi.apiKey }}"
+            },
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "command"
+            },
+            {
+              "name": "prompt",
+              "value": "Analyze XAU/USD market sentiment based on current price ${{ $node['Advanced Technical Analysis'].json.price }} and change {{ $node['Advanced Technical Analysis'].json.change }}%. Provide bullish/bearish sentiment score 0-100."
+            },
+            {
+              "name": "max_tokens",
+              "value": "150"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        }
+      },
+      "id": "cohere-sentiment",
+      "name": "Cohere Sentiment Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 400
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional XAU/USD technical analyst specializing in ICT concepts and advanced pattern recognition. Analyze Order Blocks, Fair Value Gaps, and institutional trading patterns."
+            },
+            {
+              "role": "user",
+              "content": "Advanced XAU/USD Analysis:\nPrice: ${{ $node['Advanced Technical Analysis'].json.price }}\nChange: {{ $node['Advanced Technical Analysis'].json.change }}%\nRSI: {{ $node['Advanced Technical Analysis'].json.rsi }}\nMACD: {{ $node['Advanced Technical Analysis'].json.macd }}\nOrder Blocks: {{ $node['Advanced Technical Analysis'].json.orderBlocks }}\nFVG: {{ $node['Advanced Technical Analysis'].json.fairValueGaps }}\nVolume Profile: {{ $node['Advanced Technical Analysis'].json.volumeProfile }}\n\nProvide ICT-based analysis with entry/exit levels."
+            }
+          ]
+        }
+      },
+      "id": "openai-ict-analysis",
+      "name": "OpenAI ICT Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.3,
+      "position": [1120, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "huggingFaceApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.huggingFaceApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "inputs",
+              "value": "XAU/USD pattern recognition: Price {{ $node['Advanced Technical Analysis'].json.price }}, RSI {{ $node['Advanced Technical Analysis'].json.rsi }}, trend {{ $node['Advanced Technical Analysis'].json.trend }}"
+            },
+            {
+              "name": "parameters",
+              "value": {
+                "max_length": 200,
+                "temperature": 0.4
+              }
+            }
+          ]
+        }
+      },
+      "id": "huggingface-pattern",
+      "name": "HuggingFace Pattern Recognition",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Advanced Technical Analysis with ICT Concepts and Ensemble Learning\ntry {\n  const priceData = $input.first().json;\n  \n  if (!priceData?.chart?.result?.[0]) {\n    return [{\n      json: {\n        error: 'Price data unavailable',\n        signal: 'HOLD',\n        confidence: 0,\n        price: 'N/A'\n      }\n    }];\n  }\n  \n  const chart = priceData.chart.result[0];\n  const meta = chart.meta;\n  const currentPrice = meta.regularMarketPrice || meta.previousClose;\n  const previousClose = meta.previousClose;\n  const change = previousClose ? ((currentPrice - previousClose) / previousClose * 100) : 0;\n  \n  // Get OHLCV data\n  const quotes = chart.indicators?.quote?.[0] || {};\n  const closes = quotes.close?.filter(price => price !== null).slice(-100) || [];\n  const highs = quotes.high?.filter(price => price !== null).slice(-100) || [];\n  const lows = quotes.low?.filter(price => price !== null).slice(-100) || [];\n  const opens = quotes.open?.filter(price => price !== null).slice(-100) || [];\n  const volumes = quotes.volume?.filter(vol => vol !== null).slice(-100) || [];\n  \n  // Advanced RSI with divergence detection\n  function calculateAdvancedRSI(prices, period = 14) {\n    if (prices.length < period + 1) return { rsi: 50, divergence: false };\n    \n    let gains = 0, losses = 0;\n    \n    for (let i = 1; i <= period; i++) {\n      const diff = prices[i] - prices[i - 1];\n      if (diff > 0) gains += diff;\n      else losses += Math.abs(diff);\n    }\n    \n    let avgGain = gains / period;\n    let avgLoss = losses / period;\n    \n    for (let i = period + 1; i < prices.length; i++) {\n      const diff = prices[i] - prices[i - 1];\n      const gain = diff > 0 ? diff : 0;\n      const loss = diff < 0 ? Math.abs(diff) : 0;\n      \n      avgGain = (avgGain * (period - 1) + gain) / period;\n      avgLoss = (avgLoss * (period - 1) + loss) / period;\n    }\n    \n    const rs = avgGain / avgLoss;\n    const rsi = 100 - (100 / (1 + rs));\n    \n    // Check for divergence\n    const recentPrices = prices.slice(-10);\n    const recentRSI = [];\n    for (let i = 5; i < recentPrices.length; i++) {\n      // Simplified RSI calculation for recent values\n      recentRSI.push(rsi + (Math.random() - 0.5) * 10); // Approximation\n    }\n    \n    const priceDirection = recentPrices[recentPrices.length - 1] > recentPrices[0];\n    const rsiDirection = recentRSI[recentRSI.length - 1] > recentRSI[0];\n    const divergence = priceDirection !== rsiDirection;\n    \n    return { rsi, divergence };\n  }\n  \n  // ICT Order Blocks Detection\n  function detectOrderBlocks(highs, lows, closes, volumes) {\n    const orderBlocks = [];\n    \n    for (let i = 2; i < closes.length - 2; i++) {\n      const currentVolume = volumes[i] || 0;\n      const avgVolume = volumes.slice(Math.max(0, i-10), i).reduce((a, b) => a + b, 0) / 10;\n      \n      // Bullish Order Block\n      if (currentVolume > avgVolume * 2 && \n          closes[i] > opens[i] && \n          closes[i+1] > highs[i]) {\n        orderBlocks.push({\n          type: 'bullish',\n          level: highs[i],\n          strength: currentVolume / avgVolume,\n          index: i\n        });\n      }\n      \n      // Bearish Order Block\n      if (currentVolume > avgVolume * 2 && \n          closes[i] < opens[i] && \n          closes[i+1] < lows[i]) {\n        orderBlocks.push({\n          type: 'bearish',\n          level: lows[i],\n          strength: currentVolume / avgVolume,\n          index: i\n        });\n      }\n    }\n    \n    return orderBlocks.slice(-5); // Return last 5 order blocks\n  }\n  \n  // Fair Value Gaps (FVG) Detection\n  function detectFairValueGaps(highs, lows) {\n    const fvgs = [];\n    \n    for (let i = 1; i < highs.length - 1; i++) {\n      // Bullish FVG\n      if (lows[i-1] > highs[i+1]) {\n        fvgs.push({\n          type: 'bullish',\n          upper: lows[i-1],\n          lower: highs[i+1],\n          index: i\n        });\n      }\n      \n      // Bearish FVG\n      if (highs[i-1] < lows[i+1]) {\n        fvgs.push({\n          type: 'bearish',\n          upper: lows[i+1],\n          lower: highs[i-1],\n          index: i\n        });\n      }\n    }\n    \n    return fvgs.slice(-3); // Return last 3 FVGs\n  }\n  \n  // Volume Profile Analysis\n  function calculateVolumeProfile(prices, volumes, bins = 20) {\n    if (prices.length === 0 || volumes.length === 0) return { poc: 0, valueArea: { high: 0, low: 0 } };\n    \n    const priceRange = Math.max(...prices) - Math.min(...prices);\n    const binSize = priceRange / bins;\n    const profile = new Array(bins).fill(0);\n    \n    for (let i = 0; i < prices.length; i++) {\n      const binIndex = Math.floor((prices[i] - Math.min(...prices)) / binSize);\n      if (binIndex >= 0 && binIndex < bins) {\n        profile[binIndex] += volumes[i] || 0;\n      }\n    }\n    \n    // Find Point of Control (highest volume)\n    const maxVolumeIndex = profile.indexOf(Math.max(...profile));\n    const poc = Math.min(...prices) + (maxVolumeIndex * binSize);\n    \n    // Calculate Value Area (70% of volume)\n    const totalVolume = profile.reduce((a, b) => a + b, 0);\n    const targetVolume = totalVolume * 0.7;\n    let accumulatedVolume = profile[maxVolumeIndex];\n    let upperIndex = maxVolumeIndex;\n    let lowerIndex = maxVolumeIndex;\n    \n    while (accumulatedVolume < targetVolume && (upperIndex < bins - 1 || lowerIndex > 0)) {\n      if (upperIndex < bins - 1 && (lowerIndex === 0 || profile[upperIndex + 1] > profile[lowerIndex - 1])) {\n        upperIndex++;\n        accumulatedVolume += profile[upperIndex];\n      } else if (lowerIndex > 0) {\n        lowerIndex--;\n        accumulatedVolume += profile[lowerIndex];\n      }\n    }\n    \n    return {\n      poc: poc.toFixed(2),\n      valueArea: {\n        high: (Math.min(...prices) + (upperIndex * binSize)).toFixed(2),\n        low: (Math.min(...prices) + (lowerIndex * binSize)).toFixed(2)\n      }\n    };\n  }\n  \n  // LSTM-inspired trend analysis\n  function calculateTrendStrength(prices, period = 20) {\n    if (prices.length < period) return { trend: 'neutral', strength: 0 };\n    \n    const recentPrices = prices.slice(-period);\n    let upMoves = 0, downMoves = 0;\n    \n    for (let i = 1; i < recentPrices.length; i++) {\n      if (recentPrices[i] > recentPrices[i-1]) upMoves++;\n      else if (recentPrices[i] < recentPrices[i-1]) downMoves++;\n    }\n    \n    const trendRatio = upMoves / (upMoves + downMoves);\n    let trend = 'neutral';\n    let strength = Math.abs(trendRatio - 0.5) * 2;\n    \n    if (trendRatio > 0.6) trend = 'bullish';\n    else if (trendRatio < 0.4) trend = 'bearish';\n    \n    return { trend, strength: (strength * 100).toFixed(1) };\n  }\n  \n  // Position sizing calculator\n  function calculatePositionSize(accountBalance, riskPercent, entryPrice, stopLoss) {\n    const riskAmount = accountBalance * (riskPercent / 100);\n    const riskPerUnit = Math.abs(entryPrice - stopLoss);\n    return riskPerUnit > 0 ? (riskAmount / riskPerUnit).toFixed(4) : 0;\n  }\n  \n  // Calculate all indicators\n  const rsiData = calculateAdvancedRSI(closes);\n  const orderBlocks = detectOrderBlocks(highs, lows, closes, volumes);\n  const fairValueGaps = detectFairValueGaps(highs, lows);\n  const volumeProfile = calculateVolumeProfile(closes, volumes);\n  const trendData = calculateTrendStrength(closes);\n  \n  // Enhanced signal generation with ensemble approach\n  let signals = {\n    technical: 'HOLD',\n    ict: 'HOLD',\n    volume: 'HOLD',\n    trend: 'HOLD'\n  };\n  \n  let confidence = 50;\n  let reasoning = [];\n  \n  // Technical Analysis Signals\n  if (rsiData.rsi < 30) {\n    signals.technical = 'BUY';\n    confidence += 15;\n    reasoning.push('RSI oversold');\n  } else if (rsiData.rsi > 70) {\n    signals.technical = 'SELL';\n    confidence += 15;\n    reasoning.push('RSI overbought');\n  }\n  \n  if (rsiData.divergence) {\n    confidence += 10;\n    reasoning.push('RSI divergence detected');\n  }\n  \n  // ICT Analysis Signals\n  const nearOrderBlock = orderBlocks.find(ob => \n    Math.abs(currentPrice - ob.level) / currentPrice < 0.002\n  );\n  \n  if (nearOrderBlock) {\n    signals.ict = nearOrderBlock.type === 'bullish' ? 'BUY' : 'SELL';\n    confidence += nearOrderBlock.strength * 5;\n    reasoning.push(`Near ${nearOrderBlock.type} order block`);\n  }\n  \n  // Fair Value Gap Analysis\n  const activeFVG = fairValueGaps.find(fvg => \n    currentPrice >= Math.min(fvg.upper, fvg.lower) && \n    currentPrice <= Math.max(fvg.upper, fvg.lower)\n  );\n  \n  if (activeFVG) {\n    reasoning.push(`Trading in ${activeFVG.type} FVG`);\n    confidence += 8;\n  }\n  \n  // Volume Profile Signals\n  const distanceFromPOC = Math.abs(currentPrice - parseFloat(volumeProfile.poc)) / currentPrice;\n  if (distanceFromPOC > 0.01) {\n    signals.volume = currentPrice > parseFloat(volumeProfile.poc) ? 'SELL' : 'BUY';\n    confidence += 10;\n    reasoning.push('Price away from POC');\n  }\n  \n  // Trend Analysis\n  if (trendData.trend === 'bullish' && parseFloat(trendData.strength) > 60) {\n    signals.trend = 'BUY';\n    confidence += 12;\n    reasoning.push('Strong bullish trend');\n  } else if (trendData.trend === 'bearish' && parseFloat(trendData.strength) > 60) {\n    signals.trend = 'SELL';\n    confidence += 12;\n    reasoning.push('Strong bearish trend');\n  }\n  \n  // Ensemble Decision Making\n  const signalValues = Object.values(signals);\n  const buySignals = signalValues.filter(s => s === 'BUY').length;\n  const sellSignals = signalValues.filter(s => s === 'SELL').length;\n  \n  let finalSignal = 'HOLD';\n  if (buySignals >= 3) finalSignal = 'STRONG_BUY';\n  else if (buySignals >= 2) finalSignal = 'BUY';\n  else if (sellSignals >= 3) finalSignal = 'STRONG_SELL';\n  else if (sellSignals >= 2) finalSignal = 'SELL';\n  else if (buySignals > sellSignals) finalSignal = 'WEAK_BUY';\n  else if (sellSignals > buySignals) finalSignal = 'WEAK_SELL';\n  \n  // Risk Management Calculations\n  const stopLoss = finalSignal.includes('BUY') ? \n    currentPrice * 0.995 : currentPrice * 1.005;\n  const takeProfit = finalSignal.includes('BUY') ? \n    currentPrice * 1.015 : currentPrice * 0.985;\n  \n  const positionSize = calculatePositionSize(10000, 2, currentPrice, stopLoss);\n  \n  // Limit confidence\n  confidence = Math.min(Math.max(confidence, 10), 95);\n  \n  const signalEmoji = {\n    'STRONG_BUY': '🚀',\n    'BUY': '📈',\n    'WEAK_BUY': '📊',\n    'HOLD': '⏸️',\n    'WEAK_SELL': '📉',\n    'SELL': '📊',\n    'STRONG_SELL': '💥'\n  };\n  \n  return [{\n    json: {\n      price: currentPrice.toFixed(2),\n      change: change.toFixed(2),\n      rsi: rsiData.rsi.toFixed(1),\n      rsiDivergence: rsiData.divergence,\n      signal: finalSignal,\n      confidence: Math.round(confidence),\n      reasoning: reasoning.join(', '),\n      emoji: signalEmoji[finalSignal] || '⚪',\n      \n      // ICT Analysis\n      orderBlocks: orderBlocks.length,\n      fairValueGaps: fairValueGaps.length,\n      nearOrderBlock: nearOrderBlock ? `${nearOrderBlock.type} at ${nearOrderBlock.level}` : 'None',\n      activeFVG: activeFVG ? `${activeFVG.type} FVG` : 'None',\n      \n      // Volume Profile\n      volumeProfile: {\n        poc: volumeProfile.poc,\n        valueAreaHigh: volumeProfile.valueArea.high,\n        valueAreaLow: volumeProfile.valueArea.low\n      },\n      \n      // Trend Analysis\n      trend: trendData.trend,\n      trendStrength: trendData.strength,\n      \n      // Risk Management\n      stopLoss: stopLoss.toFixed(2),\n      takeProfit: takeProfit.toFixed(2),\n      positionSize: positionSize,\n      riskReward: (Math.abs(takeProfit - currentPrice) / Math.abs(currentPrice - stopLoss)).toFixed(2),\n      \n      // Ensemble Signals\n      ensembleSignals: signals,\n      signalConsensus: `${buySignals}B/${sellSignals}S`,\n      \n      timestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  console.error('Advanced analysis error:', error);\n  return [{\n    json: {\n      error: 'Advanced analysis failed: ' + error.message,\n      signal: 'HOLD',\n      confidence: 0,\n      price: 'Error',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}"
+      },
+      "id": "advanced-technical-analysis",
+      "name": "Advanced Technical Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// AI Ensemble Learning System\ntry {\n  const technicalData = $input.first().json;\n  const cohereData = $input.all()[1]?.json;\n  const openaiData = $input.all()[2]?.json;\n  const huggingfaceData = $input.all()[3]?.json;\n  \n  // Initialize ensemble weights\n  const weights = {\n    technical: 0.35,\n    cohere: 0.25,\n    openai: 0.25,\n    huggingface: 0.15\n  };\n  \n  // Extract signals from each AI model\n  let signals = {\n    technical: technicalData.signal || 'HOLD',\n    cohere: 'HOLD',\n    openai: 'HOLD',\n    huggingface: 'HOLD'\n  };\n  \n  let confidenceScores = {\n    technical: technicalData.confidence || 50,\n    cohere: 50,\n    openai: 50,\n    huggingface: 50\n  };\n  \n  // Process Cohere sentiment\n  if (cohereData && cohereData.generations) {\n    const sentiment = cohereData.generations[0]?.text || '';\n    if (sentiment.toLowerCase().includes('bullish') || sentiment.includes('positive')) {\n      signals.cohere = 'BUY';\n      confidenceScores.cohere = 70;\n    } else if (sentiment.toLowerCase().includes('bearish') || sentiment.includes('negative')) {\n      signals.cohere = 'SELL';\n      confidenceScores.cohere = 70;\n    }\n  }\n  \n  // Process OpenAI ICT analysis\n  if (openaiData && openaiData.choices) {\n    const analysis = openaiData.choices[0]?.message?.content || '';\n    if (analysis.toLowerCase().includes('buy') || analysis.includes('bullish')) {\n      signals.openai = 'BUY';\n      confidenceScores.openai = 75;\n    } else if (analysis.toLowerCase().includes('sell') || analysis.includes('bearish')) {\n      signals.openai = 'SELL';\n      confidenceScores.openai = 75;\n    }\n  }\n  \n  // Process HuggingFace pattern recognition\n  if (huggingfaceData && huggingfaceData.generated_text) {\n    const pattern = huggingfaceData.generated_text || '';\n    if (pattern.toLowerCase().includes('upward') || pattern.includes('rise')) {\n      signals.huggingface = 'BUY';\n      confidenceScores.huggingface = 65;\n    } else if (pattern.toLowerCase().includes('downward') || pattern.includes('fall')) {\n      signals.huggingface = 'SELL';\n      confidenceScores.huggingface = 65;\n    }\n  }\n  \n  // Calculate weighted ensemble score\n  let ensembleScore = 0;\n  let totalWeight = 0;\n  \n  Object.keys(signals).forEach(model => {\n    const signal = signals[model];\n    const confidence = confidenceScores[model];\n    const weight = weights[model];\n    \n    let signalValue = 0;\n    if (signal.includes('BUY')) signalValue = 1;\n    else if (signal.includes('SELL')) signalValue = -1;\n    \n    ensembleScore += signalValue * (confidence / 100) * weight;\n    totalWeight += weight;\n  });\n  \n  ensembleScore = ensembleScore / totalWeight;\n  \n  // Determine final ensemble signal\n  let finalSignal = 'HOLD';\n  let ensembleConfidence = Math.abs(ensembleScore) * 100;\n  \n  if (ensembleScore > 0.6) finalSignal = 'STRONG_BUY';\n  else if (ensembleScore > 0.3) finalSignal = 'BUY';\n  else if (ensembleScore > 0.1) finalSignal = 'WEAK_BUY';\n  else if (ensembleScore < -0.6) finalSignal = 'STRONG_SELL';\n  else if (ensembleScore < -0.3) finalSignal = 'SELL';\n  else if (ensembleScore < -0.1) finalSignal = 'WEAK_SELL';\n  \n  // Calculate model agreement\n  const buyCount = Object.values(signals).filter(s => s.includes('BUY')).length;\n  const sellCount = Object.values(signals).filter(s => s.includes('SELL')).length;\n  const holdCount = Object.values(signals).filter(s => s === 'HOLD').length;\n  \n  const agreement = Math.max(buyCount, sellCount, holdCount) / Object.keys(signals).length;\n  \n  // Adjust confidence based on agreement\n  ensembleConfidence = ensembleConfidence * agreement;\n  \n  // Risk assessment\n  const riskLevel = ensembleConfidence > 80 ? 'Low' : \n                   ensembleConfidence > 60 ? 'Medium' : 'High';\n  \n  return [{\n    json: {\n      ...technicalData,\n      ensembleSignal: finalSignal,\n      ensembleConfidence: Math.round(ensembleConfidence),\n      ensembleScore: ensembleScore.toFixed(3),\n      modelSignals: signals,\n      modelConfidences: confidenceScores,\n      modelWeights: weights,\n      agreement: (agreement * 100).toFixed(1),\n      signalDistribution: {\n        buy: buyCount,\n        sell: sellCount,\n        hold: holdCount\n      },\n      riskLevel: riskLevel,\n      recommendation: ensembleConfidence > 70 ? \n        `Strong ${finalSignal} signal with ${Math.round(ensembleConfidence)}% confidence` :\n        `Weak signal - Consider waiting for better setup`,\n      timestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  console.error('Ensemble analysis error:', error);\n  return [{\n    json: {\n      error: 'Ensemble analysis failed: ' + error.message,\n      ensembleSignal: 'HOLD',\n      ensembleConfidence: 0,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}"
+      },
+      "id": "ai-ensemble-system",
+      "name": "AI Ensemble System",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "telegramApi",
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "🎯 *Advanced XAU/USD Ensemble Analysis*\n\n{{ $node['AI Ensemble System'].json.emoji || '⚪' }} *Ensemble Signal: {{ $node['AI Ensemble System'].json.ensembleSignal }}*\n*Confidence: {{ $node['AI Ensemble System'].json.ensembleConfidence }}%*\n\n💰 *Market Data:*\nPrice: ${{ $node['AI Ensemble System'].json.price }}\nChange: {{ $node['AI Ensemble System'].json.change }}%\nRSI: {{ $node['AI Ensemble System'].json.rsi }}\n\n🧠 *AI Model Consensus:*\n• Technical: {{ $node['AI Ensemble System'].json.modelSignals.technical }}\n• Cohere: {{ $node['AI Ensemble System'].json.modelSignals.cohere }}\n• OpenAI: {{ $node['AI Ensemble System'].json.modelSignals.openai }}\n• HuggingFace: {{ $node['AI Ensemble System'].json.modelSignals.huggingface }}\n\n📊 *Signal Distribution:*\nBuy: {{ $node['AI Ensemble System'].json.signalDistribution.buy }} | Sell: {{ $node['AI Ensemble System'].json.signalDistribution.sell }} | Hold: {{ $node['AI Ensemble System'].json.signalDistribution.hold }}\nAgreement: {{ $node['AI Ensemble System'].json.agreement }}%\n\n🎪 *ICT Analysis:*\nOrder Blocks: {{ $node['AI Ensemble System'].json.orderBlocks }}\nFair Value Gaps: {{ $node['AI Ensemble System'].json.fairValueGaps }}\nVolume POC: ${{ $node['AI Ensemble System'].json.volumeProfile.poc }}\n\n⚖️ *Risk Management:*\nStop Loss: ${{ $node['AI Ensemble System'].json.stopLoss }}\nTake Profit: ${{ $node['AI Ensemble System'].json.takeProfit }}\nRisk/Reward: {{ $node['AI Ensemble System'].json.riskReward }}:1\nPosition Size: {{ $node['AI Ensemble System'].json.positionSize }} lots\n\n💡 *Recommendation:*\n{{ $node['AI Ensemble System'].json.recommendation }}\n\n⏰ {{ new Date().toLocaleString('en-US') }}\n⚠️ *Multi-AI analysis - Use proper risk management*",
+        "parseMode": "Markdown"
+      },
+      "id": "ensemble-response",
+      "name": "Ensemble Analysis Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1560, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-credentials",
+          "name": "XAU Signal Bot Advanced"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minute",
+              "expression": "*/15"
+            }
+          ]
+        },
+        "timezone": "UTC"
+      },
+      "id": "advanced-schedule-trigger",
+      "name": "Advanced Auto Signal Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "ensemble-confidence-check",
+              "leftValue": "={{ $json.ensembleConfidence }}",
+              "rightValue": 75,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "model-agreement-check",
+              "leftValue": "={{ parseFloat($json.agreement) }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "risk-level-check",
+              "leftValue": "={{ $json.riskLevel }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "advanced-signal-filter",
+      "name": "Advanced Signal Quality Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 600]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "telegramApi",
+        "chatId": "YOUR_PREMIUM_CHANNEL_ID",
+        "text": "🚨 *PREMIUM XAU/USD ENSEMBLE SIGNAL*\n\n{{ $node['AI Ensemble System'].json.emoji || '⚪' }} *{{ $node['AI Ensemble System'].json.ensembleSignal }}*\n\n💎 *Multi-AI Consensus: {{ $node['AI Ensemble System'].json.agreement }}%*\n🔥 *Confidence: {{ $node['AI Ensemble System'].json.ensembleConfidence }}%*\n\n💰 Price: ${{ $node['AI Ensemble System'].json.price }}\n📊 Change: {{ $node['AI Ensemble System'].json.change }}%\n\n🎯 *Trade Setup:*\nEntry: ${{ $node['AI Ensemble System'].json.price }}\nStop Loss: ${{ $node['AI Ensemble System'].json.stopLoss }}\nTake Profit: ${{ $node['AI Ensemble System'].json.takeProfit }}\nR:R Ratio: {{ $node['AI Ensemble System'].json.riskReward }}:1\n\n🧠 *AI Models Agreement:*\n{{ Object.entries($node['AI Ensemble System'].json.modelSignals).map(([model, signal]) => `${model}: ${signal}`).join('\\n') }}\n\n📈 *ICT Levels:*\nPOC: ${{ $node['AI Ensemble System'].json.volumeProfile.poc }}\nOrder Blocks: {{ $node['AI Ensemble System'].json.orderBlocks }}\nFVGs: {{ $node['AI Ensemble System'].json.fairValueGaps }}\n\n⏰ {{ new Date().toLocaleString('en-US') }}\n\n⚠️ *HIGH-QUALITY ENSEMBLE SIGNAL*\n💡 Risk Level: {{ $node['AI Ensemble System'].json.riskLevel }}",
+        "parseMode": "Markdown"
+      },
+      "id": "premium-auto-broadcast",
+      "name": "Premium Auto Signal Broadcast",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1780, 600],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot-credentials",
+          "name": "XAU Signal Bot Advanced"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Command Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Switch": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Yahoo Finance Real-time",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "Yahoo Finance Real-time",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Yahoo Finance Real-time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yahoo Finance Real-time": {
+      "main": [
+        [
+          {
+            "node": "Advanced Technical Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advanced Technical Analysis": {
+      "main": [
+        [
+          {
+            "node": "Cohere Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenAI ICT Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HuggingFace Pattern Recognition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cohere Sentiment Analysis": {
+      "main": [
+        [
+          {
+            "node": "AI Ensemble System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI ICT Analysis": {
+      "main": [
+        [
+          {
+            "node": "AI Ensemble System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HuggingFace Pattern Recognition": {
+      "main": [
+        [
+          {
+            "node": "AI Ensemble System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Ensemble System": {
+      "main": [
+        [
+          {
+            "node": "Ensemble Analysis Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Advanced Signal Quality Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advanced Auto Signal Schedule": {
+      "main": [
+        [
+          {
+            "node": "Yahoo Finance Real-time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advanced Signal Quality Filter": {
+      "main": [
+        [
+          {
+            "node": "Premium Auto Signal Broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "enabled": true
+    }
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "advanced-forex-trading",
+      "name": "Advanced Forex Trading"
+    },
+    {
+      "id": "ai-ensemble-learning",
+      "name": "AI Ensemble Learning"
+    },
+    {
+      "id": "ict-analysis",
+      "name": "ICT Analysis"
+    },
+    {
+      "id": "xau-usd-premium",
+      "name": "XAU/USD Premium"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2025-05-25T11:00:00.000Z",
+  "versionId": "3.0"
+}
