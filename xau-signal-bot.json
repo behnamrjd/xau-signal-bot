@@ -1,17 +1,16 @@
 {
-  "meta": {
-    "instanceId": "n8n-xau-signal-bot-fixed-v2"
-  },
+  "name": "XAU/USD Signal Bot",
   "nodes": [
     {
-      "parameters": {
-        "updates": ["message", "callback_query"]
-      },
-      "id": "telegram-trigger",
+      "parameters": {},
+      "id": "b1f1c1e0-1234-4567-8901-123456789abc",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -30,139 +29,115 @@
             {
               "value2": "/news",
               "output": 2
-            },
-            {
-              "value2": "/analysis",
-              "output": 3
             }
           ]
         },
-        "fallbackOutput": 4
+        "fallbackOutput": 3
       },
-      "id": "command-switch",
+      "id": "b2f2c2e0-1234-4567-8901-123456789abc",
       "name": "Command Switch",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
         "chatId": "={{ $json.message.chat.id }}",
-        "text": "🤖 *Welcome to XAU/USD Signal Bot*\n\n📋 *Available Commands:*\n/signals - Get latest gold trading signals\n/news - Market news affecting gold\n/analysis - Current technical analysis\n\n💡 *Important Note:* This bot is for informational purposes only.\n\n⚠️ *Risk Warning:* Always use proper risk management.",
+        "text": "🤖 *Welcome to XAU/USD Signal Bot*\n\n📋 *Available Commands:*\n/signals - Get latest gold signals\n/news - Market news\n\n💡 This bot is for informational purposes only.\n⚠️ Always use proper risk management.",
         "parseMode": "Markdown"
       },
-      "id": "start-response",
-      "name": "Start Command Response",
+      "id": "b3f3c3e0-1234-4567-8901-123456789abc",
+      "name": "Start Response",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [680, 180]
+      "position": [
+        680,
+        180
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=5m&range=7d",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/GC=F",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "User-Agent",
-              "value": "Mozilla/5.0 (compatible; n8n-bot/2.0)"
-            },
-            {
-              "name": "Accept",
-              "value": "application/json"
-            }
-          ]
-        },
-        "timeout": 15000
-      },
-      "id": "yahoo-finance-price",
-      "name": "Yahoo Finance Price",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [680, 300],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "url": "https://www.forexfactory.com/rss.php"
-      },
-      "id": "forex-factory-news",
-      "name": "Forex Factory News",
-      "type": "n8n-nodes-base.rssFeedRead",
-      "typeVersion": 1,
-      "position": [680, 420],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "jsCode": "// Enhanced XAU/USD Technical Analysis\ntry {\n  const priceData = $input.first().json;\n  \n  if (!priceData?.chart?.result?.[0]) {\n    return [{\n      json: {\n        error: 'Price data unavailable',\n        signal: 'HOLD',\n        confidence: 0,\n        price: 'N/A'\n      }\n    }];\n  }\n  \n  const chart = priceData.chart.result[0];\n  const meta = chart.meta;\n  const currentPrice = meta.regularMarketPrice || meta.previousClose;\n  const previousClose = meta.previousClose;\n  const change = previousClose ? ((currentPrice - previousClose) / previousClose * 100) : 0;\n  \n  const quotes = chart.indicators?.quote?.[0] || {};\n  const closes = quotes.close?.filter(price => price !== null).slice(-30) || [];\n  const highs = quotes.high?.filter(price => price !== null).slice(-30) || [];\n  const lows = quotes.low?.filter(price => price !== null).slice(-30) || [];\n  const volumes = quotes.volume?.filter(vol => vol !== null).slice(-30) || [];\n  \n  // RSI Calculation\n  function calculateRSI(prices, period = 14) {\n    if (prices.length < period + 1) return 50;\n    \n    let gains = 0, losses = 0;\n    \n    for (let i = 1; i <= period; i++) {\n      const diff = prices[i] - prices[i - 1];\n      if (diff > 0) gains += diff;\n      else losses += Math.abs(diff);\n    }\n    \n    let avgGain = gains / period;\n    let avgLoss = losses / period;\n    \n    for (let i = period + 1; i < prices.length; i++) {\n      const diff = prices[i] - prices[i - 1];\n      const gain = diff > 0 ? diff : 0;\n      const loss = diff < 0 ? Math.abs(diff) : 0;\n      \n      avgGain = (avgGain * (period - 1) + gain) / period;\n      avgLoss = (avgLoss * (period - 1) + loss) / period;\n    }\n    \n    if (avgLoss === 0) return 100;\n    const rs = avgGain / avgLoss;\n    return 100 - (100 / (1 + rs));\n  }\n  \n  // MACD Calculation\n  function calculateMACD(prices) {\n    if (prices.length < 26) return { macd: 0, signal: 0, histogram: 0 };\n    \n    function calculateEMA(data, period) {\n      const multiplier = 2 / (period + 1);\n      let ema = data[0];\n      \n      for (let i = 1; i < data.length; i++) {\n        ema = (data[i] * multiplier) + (ema * (1 - multiplier));\n      }\n      return ema;\n    }\n    \n    const ema12 = calculateEMA(prices.slice(-12), 12);\n    const ema26 = calculateEMA(prices.slice(-26), 26);\n    const macd = ema12 - ema26;\n    const signal = macd * 0.9;\n    const histogram = macd - signal;\n    \n    return { macd, signal, histogram };\n  }\n  \n  // Order Blocks Detection\n  function detectOrderBlocks(highs, lows, closes, volumes) {\n    const orderBlocks = [];\n    \n    for (let i = 2; i < closes.length - 2; i++) {\n      const currentVolume = volumes[i] || 0;\n      const avgVolume = volumes.slice(Math.max(0, i-5), i).reduce((a, b) => a + b, 0) / 5;\n      \n      if (currentVolume > avgVolume * 1.5) {\n        if (closes[i] > closes[i-1] && closes[i+1] > highs[i]) {\n          orderBlocks.push({\n            type: 'bullish',\n            level: highs[i],\n            strength: currentVolume / avgVolume\n          });\n        }\n        \n        if (closes[i] < closes[i-1] && closes[i+1] < lows[i]) {\n          orderBlocks.push({\n            type: 'bearish',\n            level: lows[i],\n            strength: currentVolume / avgVolume\n          });\n        }\n      }\n    }\n    \n    return orderBlocks.slice(-3);\n  }\n  \n  // Fair Value Gaps Detection\n  function detectFairValueGaps(highs, lows) {\n    const fvgs = [];\n    \n    for (let i = 1; i < highs.length - 1; i++) {\n      if (lows[i-1] > highs[i+1]) {\n        fvgs.push({\n          type: 'bullish',\n          upper: lows[i-1],\n          lower: highs[i+1]\n        });\n      }\n      \n      if (highs[i-1] < lows[i+1]) {\n        fvgs.push({\n          type: 'bearish',\n          upper: lows[i+1],\n          lower: highs[i-1]\n        });\n      }\n    }\n    \n    return fvgs.slice(-2);\n  }\n  \n  // Calculate indicators\n  const rsi = calculateRSI(closes);\n  const macdData = calculateMACD(closes);\n  const orderBlocks = detectOrderBlocks(highs, lows, closes, volumes);\n  const fairValueGaps = detectFairValueGaps(highs, lows);\n  \n  // Signal generation\n  let signal = 'HOLD';\n  let confidence = 50;\n  let reasoning = [];\n  \n  // RSI Analysis\n  if (rsi < 30) {\n    reasoning.push('RSI oversold');\n    confidence += 20;\n    if (change > 0) {\n      signal = 'BUY';\n      confidence += 15;\n    }\n  } else if (rsi > 70) {\n    reasoning.push('RSI overbought');\n    confidence += 20;\n    if (change < 0) {\n      signal = 'SELL';\n      confidence += 15;\n    }\n  }\n  \n  // MACD Analysis\n  if (macdData.macd > macdData.signal) {\n    reasoning.push('MACD bullish');\n    confidence += 10;\n  } else if (macdData.macd < macdData.signal) {\n    reasoning.push('MACD bearish');\n    confidence -= 10;\n  }\n  \n  // Order Blocks Analysis\n  const nearOrderBlock = orderBlocks.find(ob => \n    Math.abs(currentPrice - ob.level) / currentPrice < 0.002\n  );\n  \n  if (nearOrderBlock) {\n    reasoning.push(`Near ${nearOrderBlock.type} order block`);\n    confidence += 15;\n  }\n  \n  // Price momentum\n  if (Math.abs(change) > 1) {\n    reasoning.push(`Strong movement: ${change.toFixed(2)}%`);\n    confidence += 10;\n  }\n  \n  confidence = Math.min(Math.max(confidence, 10), 95);\n  \n  const signalEmoji = {\n    'BUY': '🚀',\n    'SELL': '💥',\n    'HOLD': '⏸️'\n  };\n  \n  return [{\n    json: {\n      price: currentPrice.toFixed(2),\n      change: change.toFixed(2),\n      rsi: rsi.toFixed(1),\n      macd: macdData.macd.toFixed(4),\n      signal: signal,\n      confidence: Math.round(confidence),\n      reasoning: reasoning.join(', '),\n      emoji: signalEmoji[signal] || '⚪',\n      orderBlocks: orderBlocks.length,\n      fairValueGaps: fairValueGaps.length,\n      timestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  console.error('Analysis error:', error);\n  return [{\n    json: {\n      error: 'Analysis failed: ' + error.message,\n      signal: 'HOLD',\n      confidence: 0,\n      price: 'Error',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}"
-      },
-      "id": "technical-analysis",
-      "name": "Technical Analysis",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [900, 300]
-    },
-    {
-      "parameters": {
-        "model": "gpt-3.5-turbo",
-        "temperature": 0.2,
-        "maxTokens": 300,
-        "messages": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are a professional XAU/USD technical analyst. Provide concise trading insights."
-            },
-            {
-              "role": "user",
-              "content": "XAU/USD Analysis:\nPrice: ${{ $json.price }}\nChange: {{ $json.change }}%\nRSI: {{ $json.rsi }}\nMACD: {{ $json.macd }}\nSignal: {{ $json.signal }}\nConfidence: {{ $json.confidence }}%\n\nProvide brief analysis."
+              "value": "Mozilla/5.0 (compatible; n8n)"
             }
           ]
         }
       },
-      "id": "openai-analysis",
-      "name": "AI Analysis",
-      "type": "n8n-nodes-base.openAi",
-      "typeVersion": 1.3,
-      "position": [1120, 300],
+      "id": "b4f4c4e0-1234-4567-8901-123456789abc",
+      "name": "Yahoo Finance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ],
       "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.message.chat.id }}",
-        "text": "{{ $node['Technical Analysis'].json.emoji }} *XAU/USD Analysis*\n\n💰 *Price:* ${{ $node['Technical Analysis'].json.price }}\n📊 *Change:* {{ $node['Technical Analysis'].json.change }}%\n📈 *RSI:* {{ $node['Technical Analysis'].json.rsi }}\n⚡ *MACD:* {{ $node['Technical Analysis'].json.macd }}\n\n🎯 *Signal:* {{ $node['Technical Analysis'].json.signal }}\n🔥 *Confidence:* {{ $node['Technical Analysis'].json.confidence }}%\n\n🧠 *AI Analysis:*\n{{ $node['AI Analysis']?.json?.choices?.[0]?.message?.content || 'AI analysis unavailable' }}\n\n📋 *Technical Factors:*\n{{ $node['Technical Analysis'].json.reasoning }}\n\n⏰ *Time:* {{ new Date().toLocaleString('en-US') }}\n⚠️ *Risk Warning:* Use proper risk management",
-        "parseMode": "Markdown"
-      },
-      "id": "signals-response",
-      "name": "Signals Response",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [1340, 300]
     },
     {
       "parameters": {
         "url": "https://www.forexfactory.com/rss.php"
       },
-      "id": "news-rss",
-      "name": "News RSS",
+      "id": "b5f5c5e0-1234-4567-8901-123456789abc",
+      "name": "Forex News",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
-      "position": [680, 540],
+      "position": [
+        680,
+        420
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
+        "jsCode": "// XAU/USD Technical Analysis\ntry {\n  const data = $input.first().json;\n  \n  if (!data?.chart?.result?.[0]) {\n    return [{ json: { error: 'No data', signal: 'HOLD', price: 'N/A' } }];\n  }\n  \n  const chart = data.chart.result[0];\n  const meta = chart.meta;\n  const price = meta.regularMarketPrice || meta.previousClose;\n  const prevClose = meta.previousClose;\n  const change = prevClose ? ((price - prevClose) / prevClose * 100) : 0;\n  \n  // Simple RSI calculation\n  const quotes = chart.indicators?.quote?.[0] || {};\n  const closes = quotes.close?.filter(p => p !== null).slice(-14) || [];\n  \n  function simpleRSI(prices) {\n    if (prices.length < 14) return 50;\n    \n    let gains = 0, losses = 0;\n    for (let i = 1; i < prices.length; i++) {\n      const diff = prices[i] - prices[i-1];\n      if (diff > 0) gains += diff;\n      else losses += Math.abs(diff);\n    }\n    \n    const avgGain = gains / 13;\n    const avgLoss = losses / 13;\n    if (avgLoss === 0) return 100;\n    \n    const rs = avgGain / avgLoss;\n    return 100 - (100 / (1 + rs));\n  }\n  \n  const rsi = simpleRSI(closes);\n  \n  // Signal generation\n  let signal = 'HOLD';\n  let confidence = 50;\n  \n  if (rsi < 30 && change > 0) {\n    signal = 'BUY';\n    confidence = 75;\n  } else if (rsi > 70 && change < 0) {\n    signal = 'SELL';\n    confidence = 75;\n  } else if (Math.abs(change) > 1) {\n    signal = change > 0 ? 'WEAK_BUY' : 'WEAK_SELL';\n    confidence = 60;\n  }\n  \n  const emoji = signal.includes('BUY') ? '🚀' : signal.includes('SELL') ? '💥' : '⏸️';\n  \n  return [{\n    json: {\n      price: price.toFixed(2),\n      change: change.toFixed(2),\n      rsi: rsi.toFixed(1),\n      signal: signal,\n      confidence: confidence,\n      emoji: emoji,\n      timestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  return [{\n    json: {\n      error: error.message,\n      signal: 'HOLD',\n      price: 'Error'\n    }\n  }];\n}"
+      },
+      "id": "b6f6c6e0-1234-4567-8901-123456789abc",
+      "name": "Technical Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "chatId": "={{ $json.message.chat.id }}",
-        "text": "📰 *Latest Gold Market News*\n\n{{ $node['News RSS'].json?.length > 0 ? $node['News RSS'].json.slice(0,3).map((item, index) => `${index + 1}. *${item.title}*\\n   🔗 [Read More](${item.link})\\n   📅 ${new Date(item.pubDate).toLocaleDateString('en-US')}`).join('\\n\\n') : 'No recent news available' }}\n\n💡 *Note:* News events can significantly impact gold prices.",
+        "text": "{{ $node['Technical Analysis'].json.emoji }} *XAU/USD Analysis*\n\n💰 *Price:* ${{ $node['Technical Analysis'].json.price }}\n📊 *Change:* {{ $node['Technical Analysis'].json.change }}%\n📈 *RSI:* {{ $node['Technical Analysis'].json.rsi }}\n\n🎯 *Signal:* {{ $node['Technical Analysis'].json.signal }}\n🔥 *Confidence:* {{ $node['Technical Analysis'].json.confidence }}%\n\n⏰ {{ new Date().toLocaleString('en-US') }}\n⚠️ Use proper risk management",
         "parseMode": "Markdown"
       },
-      "id": "news-response",
+      "id": "b7f7c7e0-1234-4567-8901-123456789abc",
+      "name": "Signal Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "📰 *Latest Gold News*\n\n{{ $node['Forex News'].json?.slice(0,3).map((item, i) => `${i+1}. ${item.title}\\n🔗 ${item.link}`).join('\\n\\n') || 'No news available' }}\n\n💡 News can impact gold prices significantly.",
+        "parseMode": "Markdown"
+      },
+      "id": "b8f8c8e0-1234-4567-8901-123456789abc",
       "name": "News Response",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [900, 540]
+      "position": [
+        900,
+        420
+      ]
     },
     {
       "parameters": {
@@ -170,16 +145,19 @@
           "interval": [
             {
               "field": "minute",
-              "expression": "*/20"
+              "expression": "*/30"
             }
           ]
         }
       },
-      "id": "schedule-trigger",
-      "name": "Auto Schedule",
+      "id": "b9f9c9e0-1234-4567-8901-123456789abc",
+      "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 600]
+      "position": [
+        240,
+        600
+      ]
     },
     {
       "parameters": {
@@ -188,28 +166,34 @@
             {
               "value1": "={{ $json.confidence }}",
               "operation": "largerEqual",
-              "value2": 75
+              "value2": 70
             }
           ]
         }
       },
-      "id": "signal-filter",
-      "name": "Signal Quality Filter",
+      "id": "b10f10c10e0-1234-4567-8901-123456789abc",
+      "name": "Quality Filter",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1120, 600]
+      "position": [
+        1120,
+        600
+      ]
     },
     {
       "parameters": {
         "chatId": "YOUR_CHANNEL_ID",
-        "text": "🚨 *Auto XAU/USD Signal*\n\n{{ $node['Technical Analysis'].json.emoji }} *{{ $node['Technical Analysis'].json.signal }}*\n\n💰 Price: ${{ $node['Technical Analysis'].json.price }}\n📊 Change: {{ $node['Technical Analysis'].json.change }}%\n🔥 Confidence: {{ $node['Technical Analysis'].json.confidence }}%\n\n📋 {{ $node['Technical Analysis'].json.reasoning }}\n\n⏰ {{ new Date().toLocaleString('en-US') }}",
+        "text": "🚨 *Auto XAU/USD Signal*\n\n{{ $node['Technical Analysis'].json.emoji }} *{{ $node['Technical Analysis'].json.signal }}*\n\n💰 ${{ $node['Technical Analysis'].json.price }}\n📊 {{ $node['Technical Analysis'].json.change }}%\n🔥 {{ $node['Technical Analysis'].json.confidence }}%\n\n⏰ {{ new Date().toLocaleString('en-US') }}",
         "parseMode": "Markdown"
       },
-      "id": "auto-broadcast",
-      "name": "Auto Signal Broadcast",
+      "id": "b11f11c11e0-1234-4567-8901-123456789abc",
+      "name": "Auto Broadcast",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1340, 600]
+      "position": [
+        1340,
+        600
+      ]
     }
   ],
   "connections": {
@@ -228,35 +212,28 @@
       "main": [
         [
           {
-            "node": "Start Command Response",
+            "node": "Start Response",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Yahoo Finance Price",
+            "node": "Yahoo Finance",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "News RSS",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Yahoo Finance Price",
+            "node": "Forex News",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Yahoo Finance Price": {
+    "Yahoo Finance": {
       "main": [
         [
           {
@@ -271,30 +248,19 @@
       "main": [
         [
           {
-            "node": "AI Analysis",
+            "node": "Signal Response",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Signal Quality Filter",
+            "node": "Quality Filter",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Analysis": {
-      "main": [
-        [
-          {
-            "node": "Signals Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "News RSS": {
+    "Forex News": {
       "main": [
         [
           {
@@ -305,22 +271,22 @@
         ]
       ]
     },
-    "Auto Schedule": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "Yahoo Finance Price",
+            "node": "Yahoo Finance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Signal Quality Filter": {
+    "Quality Filter": {
       "main": [
         [
           {
-            "node": "Auto Signal Broadcast",
+            "node": "Auto Broadcast",
             "type": "main",
             "index": 0
           }
@@ -335,6 +301,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 2,
-  "updatedAt": "2025-05-25T12:00:00.000Z",
-  "versionId": "2.0"
+  "updatedAt": "2025-05-25T12:30:00.000Z",
+  "versionId": "1.0"
 }
