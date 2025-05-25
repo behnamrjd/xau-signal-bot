@@ -1,6 +1,6 @@
 {
   "meta": {
-    "instanceId": "n8n-xau-signal-bot-fixed"
+    "instanceId": "n8n-xau-signal-bot-fixed-v2"
   },
   "nodes": [
     {
@@ -61,13 +61,20 @@
       "parameters": {
         "method": "GET",
         "url": "https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=5m&range=7d",
-        "options": {
-          "headers": {
-            "User-Agent": "Mozilla/5.0 (compatible; n8n-bot/2.0)",
-            "Accept": "application/json"
-          },
-          "timeout": 15000
-        }
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; n8n-bot/2.0)"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "timeout": 15000
       },
       "id": "yahoo-finance-price",
       "name": "Yahoo Finance Price",
@@ -78,10 +85,7 @@
     },
     {
       "parameters": {
-        "url": "https://www.forexfactory.com/rss.php",
-        "options": {
-          "maxItems": 5
-        }
+        "url": "https://www.forexfactory.com/rss.php"
       },
       "id": "forex-factory-news",
       "name": "Forex Factory News",
@@ -103,10 +107,8 @@
     {
       "parameters": {
         "model": "gpt-3.5-turbo",
-        "options": {
-          "temperature": 0.2,
-          "maxTokens": 300
-        },
+        "temperature": 0.2,
+        "maxTokens": 300,
         "messages": {
           "values": [
             {
@@ -141,10 +143,7 @@
     },
     {
       "parameters": {
-        "url": "https://www.forexfactory.com/rss.php",
-        "options": {
-          "maxItems": 3
-        }
+        "url": "https://www.forexfactory.com/rss.php"
       },
       "id": "news-rss",
       "name": "News RSS",
@@ -185,20 +184,11 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
+          "number": [
             {
-              "id": "confidence-check",
-              "leftValue": "={{ $json.confidence }}",
-              "rightValue": 75,
-              "operator": {
-                "type": "number",
-                "operation": "gte"
-              }
+              "value1": "={{ $json.confidence }}",
+              "operation": "largerEqual",
+              "value2": 75
             }
           ]
         }
@@ -206,7 +196,7 @@
       "id": "signal-filter",
       "name": "Signal Quality Filter",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [1120, 600]
     },
     {
@@ -345,6 +335,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 2,
-  "updatedAt": "2025-05-25T11:30:00.000Z",
-  "versionId": "1.0"
+  "updatedAt": "2025-05-25T12:00:00.000Z",
+  "versionId": "2.0"
 }
